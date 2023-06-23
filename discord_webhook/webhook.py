@@ -247,6 +247,7 @@ class DiscordWebhook:
     tts: bool
     url: str
     username: Optional[str]
+    thread_id = Optional[int]
 
     def __init__(
         self,
@@ -263,6 +264,7 @@ class DiscordWebhook:
         timeout: Optional[float] = None,
         rate_limit_retry: bool = False,
         allowed_mentions: Optional[List[str]] = None,
+        thread_id: Optional[int] = None,
     ) -> None:
         """
         Init Webhook for Discord.
@@ -281,8 +283,8 @@ class DiscordWebhook:
         :keyword ``embeds:`` list of embedded rich content\n
         :keyword ``allowed_mentions:`` allowed mentions for the message\n
         :keyword ``proxies:`` dict of proxies\n
-        :keyword ``timeout:`` (optional) amount of seconds to wait for a
-        response from Discord
+        :keyword ``timeout:`` (optional) amount of seconds to wait for a response from Discord\n
+        :keyword ``thread_id`` id of the thread to send the message in\n
         """
         if allowed_mentions is None:
             allowed_mentions = []
@@ -306,6 +308,16 @@ class DiscordWebhook:
         self.tts = tts
         self.url = url
         self.username = username
+        self.thread_id = thread_id
+
+    def add_file(self, file: bytes, filename: str) -> None:
+        """
+        Add a file to the webhook.
+        :param file: file content
+        :param filename: filename
+        :return:
+        """
+        self.files[f"_{filename}"] = (filename, file)
 
     def add_embed(self, embed: Union[DiscordEmbed, Dict[str, Any]]) -> None:
         """
@@ -423,7 +435,7 @@ class DiscordWebhook:
                 self.url,
                 json=self.json,
                 proxies=self.proxies,
-                params={"wait": True},
+                params={"wait": True, "thread_id": self.thread_id},
                 timeout=self.timeout,
             )
 
@@ -432,6 +444,7 @@ class DiscordWebhook:
             self.url,
             files=self.files,
             proxies=self.proxies,
+            params={"thread_id": self.thread_id},
             timeout=self.timeout,
         )
 
@@ -504,7 +517,7 @@ class DiscordWebhook:
                 url,
                 json=self.json,
                 proxies=self.proxies,
-                params={"wait": True},
+                params={"wait": True, "thread_id": self.thread_id},
                 timeout=self.timeout,
             )
         else:
@@ -514,6 +527,7 @@ class DiscordWebhook:
                 url,
                 files=self.files,
                 proxies=self.proxies,
+                params={"thread_id": self.thread_id},
                 timeout=self.timeout,
             )
         response = request()
@@ -544,7 +558,7 @@ class DiscordWebhook:
         ), "Webhook URL needs to be set in order to delete the webhook."
         url = f"{self.url}/messages/{self.id}"
         request = partial(
-            requests.delete, url, proxies=self.proxies, timeout=self.timeout
+            requests.delete, url, proxies=self.proxies, params={"thread_id": self.thread_id}, timeout=self.timeout
         )
         response = request()
         if response.status_code in [200, 204]:
@@ -563,4 +577,6 @@ class DiscordWebhook:
         """
         if "url" in kwargs:
             raise TypeError("'url' can't be used as a keyword argument.")
+        if 'thread_id' in kwargs:
+            raise TypeError("'thread_id' can't be used as a keyword argument.")
         return tuple([cls(url, **kwargs) for url in urls])
